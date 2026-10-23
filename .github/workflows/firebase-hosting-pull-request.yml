@@ -58,7 +58,7 @@ jobs:
           # TODO A3: Reemplazá el nombre del secreto por el que creó
           #          `firebase init hosting:github` en tu repo
           #          (Settings → Secrets and variables → Actions).
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_REEMPLAZAR }}
-          projectId: REEMPLAZAR-POR-TU-PROJECT-ID
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FIR_PRACTICA_72F70 }}
+          projectId: fir-practica-72f70
           # TODO A3: Definí cuánto tiempo vive el preview (ej. 3d). ¿Por qué no conviene que viva para siempre?
-          # expires: ???
+          expires: 3d
