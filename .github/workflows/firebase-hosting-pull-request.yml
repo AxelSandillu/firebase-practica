@@ -11,6 +11,8 @@ name: Preview en Pull Request
 on:
   pull_request:
 
+#Cambio realizado
+
 permissions:
   contents: read
   checks: write
