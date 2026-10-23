@@ -8,8 +8,7 @@ name: Deploy a producción
 
 # TODO A1: Cambiá el trigger para que corra en cada push a la rama `main`.
 on:
-  push:
-    - main
+  workflow_dispatch:
 
 permissions:
   contents: read
