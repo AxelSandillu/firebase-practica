@@ -47,8 +47,8 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
-          NEXT_PUBLIC_BUILD_SHA: "github.event.pull_request.head.sha"
-          NEXT_PUBLIC_BUILD_REF: "github.head_ref"
+          NEXT_PUBLIC_BUILD_SHA: ${{ github.event.pull_request.head.sha }}
+          NEXT_PUBLIC_BUILD_REF: ${{ github.head_ref }}
           NEXT_PUBLIC_BUILD_TIME: ${{ github.event.pull_request.updated_at }}
 
       - name: Deploy a preview channel
