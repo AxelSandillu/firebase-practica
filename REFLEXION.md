@@ -21,7 +21,7 @@
 ❌ 6 control(es) pendiente(s).
 ```
 
-**securityheaders.com (antes):** calificación pendiente de anotar (medición previa al merge).
+**securityheaders.com (antes):** no se midió antes del merge.
 
 ### Después (B5) — producción con headers
 
@@ -29,22 +29,20 @@
 ▶ HTML: https://fir-practica-72f70.web.app/
   status 200
   ✔ content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://picsum.photos https://fastly.picsum.photos; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
-  ✔ strict-transport-security: max-age=31536000; includeSubDomains
+  ✔ strict-transport-security: max-age=31556926; includeSubDomains; preload
   ✔ x-content-type-options: nosniff
   ✔ x-frame-options: DENY
   ✔ referrer-policy: no-referrer
   ✔ permissions-policy: camera=(), microphone=(), geolocation=()
   · cache-control: no-cache
 
-▶ Asset estático: /_next/static/chunks/*.js
+▶ Asset estático: /_next/static/chunks/1x6obpmlu1_c2.js
   ✔ cache-control: public, max-age=31536000, immutable
 
 ✅ Todos los controles pasaron.
 ```
 
-**securityheaders.com (después):** calificación pendiente de anotar.
-
-> **Nota:** completar las calificación de securityheaders.com (antes y después) una vez realizadas las mediciones en el navegador.
+**securityheaders.com (después):** no se midió en securityheaders.com.
 
 ## 1. ¿Por qué el preview tiene vencimiento? ¿Qué riesgos tendría un preview que no vence nunca?
 
