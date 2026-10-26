@@ -1,5 +1,51 @@
 # REFLEXIÓN - Práctica CI/CD con Firebase Hosting
 
+## Salidas de medición (check-headers.mjs)
+
+### Antes (B1) — producción sin headers
+
+```
+▶ HTML: https://fir-practica-72f70.web.app/
+  status 200
+  ✘ content-security-policy (falta)
+  ✔ strict-transport-security: max-age=31556926; includeSubDomains; preload
+  ✘ x-content-type-options (falta)
+  ✘ x-frame-options (falta)
+  ✘ referrer-policy (falta)
+  ✘ permissions-policy (falta)
+  · cache-control: max-age=3600
+
+▶ Asset estático: /_next/static/chunks/1x6obpmlu1_c2.js
+  ✘ cache-control: max-age=3600
+
+❌ 6 control(es) pendiente(s).
+```
+
+**securityheaders.com (antes):** calificación pendiente de anotar (medición previa al merge).
+
+### Después (B5) — producción con headers
+
+```
+▶ HTML: https://fir-practica-72f70.web.app/
+  status 200
+  ✔ content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://picsum.photos https://fastly.picsum.photos; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+  ✔ strict-transport-security: max-age=31536000; includeSubDomains
+  ✔ x-content-type-options: nosniff
+  ✔ x-frame-options: DENY
+  ✔ referrer-policy: no-referrer
+  ✔ permissions-policy: camera=(), microphone=(), geolocation=()
+  · cache-control: no-cache
+
+▶ Asset estático: /_next/static/chunks/*.js
+  ✔ cache-control: public, max-age=31536000, immutable
+
+✅ Todos los controles pasaron.
+```
+
+**securityheaders.com (después):** calificación pendiente de anotar.
+
+> **Nota:** completar las calificación de securityheaders.com (antes y después) una vez realizadas las mediciones en el navegador.
+
 ## 1. ¿Por qué el preview tiene vencimiento? ¿Qué riesgos tendría un preview que no vence nunca?
 
 El preview tiene vencimiento (`expires: 3d`) porque los preview channels son entornos efímeros destinados a revisar un Pull Request específico antes de hacer merge. Si no vencieran:
@@ -35,7 +81,7 @@ Para limitar el daño:
 
 La CSP rompió la app porque:
 
-- La página de inicio carga una imagen externa desde `https://picsum.photos/...`, que queda bloqueada si `img-src` solo permite `'self'`.
+- La página de inicio carga una imagen externa desde `https://picsum.photos/...`. Al hacer el request, `picsum.photos` responde con un redirect `302` a `https://fastly.picsum.photos/id/...jpg`, por lo que el navegador necesita que `img-src` permita **ambos orígenes**: `https://picsum.photos` (la petición inicial) y `https://fastly.picsum.photos` (el destino del redirect donde se sirve la imagen real). Si `img-src` solo permite `'self'`, la imagen queda bloqueada.
 - Next.js con export estático genera scripts y estilos en línea (inline) para la hidratación de React y componentes cliente (`FiltroCursos.tsx` es `"use client"`). Con `script-src 'self'` y `style-src 'self'` sin `'unsafe-inline'`, el navegador bloquea esos scripts y estilos, rompiendo la interactividad del filtro de cursos.
 
 Opciones evaluadas:
@@ -62,7 +108,7 @@ Decisión: Se usó `'unsafe-inline'` para que la app funcione, documentado como 
 
 Los archivos bajo `/_next/static/` tienen nombres que incluyen un hash de contenido (por ejemplo, `_next/static/chunks/app-xyz.js`). Si el contenido cambia, cambia el nombre del archivo, por lo que el navegador nunca sirve una versión obsoleta de un asset ya cacheado. Pueden cachearse como inmutables (`max-age=31536000, immutable`) sin riesgo de servir contenido desactualizado.
 
-El HTML no puede cachearse sin revalidar porque no tiene versionado en la URL: siempre se sirve en la misma ruta (por ejemplo, `/cursos`). Si se cacheara agresivamente, después de un deploy o un rollback los usuarios seguirían viendo la versión antigua en caché hasta que expirara, rompiendo la trazabilidad y haciendo que los rollbacks tardaran en hacerse efectivos. Por eso se usa `Cache-Control: no-cache` para el HTML.
+El HTML no puede cachearse sin revalidar porque no tiene versionado en la URL: siempre se sirve en la misma ruta (por ejemplo, `/cursos`). Si se cacheara agresivamente, después de un deploy o un rollback los usuarios seguirían viendo la versión antigua en caché hasta que expirara, rompiendo la trazabilidad y haciendo que los rollbacks tardaran en hacerse efectivos. Por eso se usa `Cache-Control: no-cache` como regla general para `**`, y solo los assets versionados de `/_next/static/` se cachean como inmutables (`max-age=31536000, immutable`).
 
 ## 7. Si la app necesitara SSR, ¿qué cambiaría en la arquitectura, en la CSP y en el costo?
 
