@@ -1,34 +1,40 @@
 # REFLEXIÓN - Práctica CI/CD con Firebase Hosting
 
-## Salidas de medición (check-headers.mjs)
+## Mediciones de `check-headers.mjs`
 
-### Antes (B1) — producción sin headers
+### Antes (B1)
+
+Medido en local (emulador de Hosting) con el `firebase.json` original de la práctica (commit `3320b8b`, sin headers), porque no se guardó la medición en producción antes de modificarlo.
 
 ```
-▶ HTML: https://fir-practica-72f70.web.app/
+$ node scripts/check-headers.mjs http://localhost:5000
+
+▶ HTML: http://localhost:5000/
   status 200
   ✘ content-security-policy (falta)
-  ✔ strict-transport-security: max-age=31556926; includeSubDomains; preload
+  ✘ strict-transport-security (falta)
   ✘ x-content-type-options (falta)
   ✘ x-frame-options (falta)
   ✘ referrer-policy (falta)
   ✘ permissions-policy (falta)
-  · cache-control: max-age=3600
+  · cache-control: (no definido)
 
 ▶ Asset estático: /_next/static/chunks/1x6obpmlu1_c2.js
-  ✘ cache-control: max-age=3600
+  ✘ cache-control: (no definido)
 
-❌ 6 control(es) pendiente(s).
+❌ 7 control(es) pendiente(s).
 ```
 
-**securityheaders.com (antes):** no se midió antes del merge.
+### Después (B5)
 
-### Después (B5) — producción con headers
+Medido en producción tras mergear el PR de headers.
 
 ```
+$ node scripts/check-headers.mjs https://fir-practica-72f70.web.app/
+
 ▶ HTML: https://fir-practica-72f70.web.app/
   status 200
-  ✔ content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://picsum.photos https://fastly.picsum.photos; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+  ✔ content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https:…
   ✔ strict-transport-security: max-age=31556926; includeSubDomains; preload
   ✔ x-content-type-options: nosniff
   ✔ x-frame-options: DENY
@@ -42,7 +48,9 @@
 ✅ Todos los controles pasaron.
 ```
 
-**securityheaders.com (después):** no se midió en securityheaders.com.
+### Comparación
+
+Se pasó de 7 controles pendientes (sin ningún header de seguridad ni `Cache-Control`) a todos los controles aprobados: CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Permissions-Policy` en el HTML, y caché inmutable de un año en `/_next/static/`, con el HTML en `no-cache`.
 
 ## 1. ¿Por qué el preview tiene vencimiento? ¿Qué riesgos tendría un preview que no vence nunca?
 
@@ -65,11 +73,13 @@ Un preview se despliega pero no se "libera" al público general (solo se compart
 Va en un secreto porque el repo es público (o al menos accesible por varios desarrolladores) y la clave JSON de la service account es una credencial con privilegios de despliegue. Si estuviera commitada, cualquiera con lectura al repo podría obtenerla.
 
 Alguien que la obtenga podría:
+
 - Desplegar versiones arbitrarias al proyecto Firebase (incluido producción).
 - Borrar canales de preview, modificar la configuración de Hosting.
 - Leer o modificar otros recursos del proyecto Firebase según los permisos de la service account.
 
 Para limitar el daño:
+
 - Usar una service account con el mínimo privilegio necesario (solo `firebasehosting.admin` o similar, no permisos de owner sobre todo el proyecto).
 - Rotar la clave periódicamente.
 - Monitorear los logs de Firebase Console para detectar deploys no autorizados.
@@ -94,13 +104,13 @@ Decisión: Se usó `'unsafe-inline'` para que la app funcione, documentado como 
 
 ## 5. Para cada header de B2, ¿qué ataque mitiga?
 
-| Header | Ataque que mitiga |
-|--------|-------------------|
-| **Strict-Transport-Security** | Ataques de downgrade (forzar que el navegador use HTTP en lugar de HTTPS) y robo de cookies de sesión por conexiones no seguras. |
-| **X-Content-Type-Options: nosniff** | MIME sniffing: evita que el navegador interprete un archivo como un tipo distinto al declarado (por ejemplo, tratar un archivo subido por el usuario como HTML ejecutable). |
-| **X-Frame-Options: DENY** | Clickjacking: impide que el sitio se incruste en un iframe de otro sitio malicioso que capture clics del usuario. |
-| **Referrer-Policy: no-referrer** | Filtración de información: evita que se envíe la URL completa (que podría contener tokens o datos sensibles en query strings) a sitios de terceros al seguir enlaces salientes. |
-| **Permissions-Policy** | Uso no autorizado de APIs del navegador (cámara, micrófono, geolocalización) por la página o por iframes embebidos. |
+| Header                              | Ataque que mitiga                                                                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Strict-Transport-Security**       | Ataques de downgrade (forzar que el navegador use HTTP en lugar de HTTPS) y robo de cookies de sesión por conexiones no seguras.                                                |
+| **X-Content-Type-Options: nosniff** | MIME sniffing: evita que el navegador interprete un archivo como un tipo distinto al declarado (por ejemplo, tratar un archivo subido por el usuario como HTML ejecutable).     |
+| **X-Frame-Options: DENY**           | Clickjacking: impide que el sitio se incruste en un iframe de otro sitio malicioso que capture clics del usuario.                                                               |
+| **Referrer-Policy: no-referrer**    | Filtración de información: evita que se envíe la URL completa (que podría contener tokens o datos sensibles en query strings) a sitios de terceros al seguir enlaces salientes. |
+| **Permissions-Policy**              | Uso no autorizado de APIs del navegador (cámara, micrófono, geolocalización) por la página o por iframes embebidos.                                                             |
 
 ## 6. ¿Por qué los assets de `/_next/static/` pueden cachearse un año y el HTML no?
 
