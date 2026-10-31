@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Mutations del conector `cursos`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Ejemplo resuelto: alta o actualización del perfil del alumno que llama.
+# Observá que el cliente solo manda `nombre`:
+#   - id_expr: "auth.uid"           → el servidor usa el UID del token
+#   - email_expr: "auth.token.email" → el servidor usa el email del token
+# Ningún usuario puede crear o modificar el perfil de otro.
+mutation UpsertAlumno($nombre: String!) @auth(level: USER) {
+  alumno_upsert(data: { id_expr: "auth.uid", nombre: $nombre, email_expr: "auth.token.email" })
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TODO L2 resuelto: inscripción del usuario que llama.
+#
+#   - USER: sin sesión iniciada, el servidor rechaza la operación.
+#   - `alumnoId_expr: "auth.uid"`: el alumno sale del TOKEN, no de una variable.
+#     No hay forma de inscribir a otra persona (la operación ni siquiera acepta
+#     un id de alumno).
+#   - `matricula_upsert` es idempotente: si ya existe la fila (alumnoId, cursoId)
+#     la actualiza en lugar de fallar. Como `fecha` no se manda, el servidor la
+#     recalcula con el default; nunca se duplica ni lanza error.
+# ─────────────────────────────────────────────────────────────────────────────
+mutation Inscribirme($cursoId: UUID!) @auth(level: USER) {
+  matricula_upsert(data: { alumnoId_expr: "auth.uid", cursoId: $cursoId })
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TODO L5 resuelto: baja del usuario que llama.
+#
+#   - Borra ÚNICAMENTE la fila cuya clave es (auth.uid, $cursoId): cualquier
+#     otro alumno queda fuera del alcance de la operación.
+#   - Si el usuario no estaba inscripto, la clave no existe y no borra nada.
+# ─────────────────────────────────────────────────────────────────────────────
+mutation DarmeDeBaja($cursoId: UUID!) @auth(level: USER) {
+  matricula_delete(key: { alumnoId_expr: "auth.uid", cursoId: $cursoId })
+}
