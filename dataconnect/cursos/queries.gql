@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Queries del conector `cursos`.
+#  Cada operación DEBE declarar quién puede ejecutarla con @auth:
+#    PUBLIC     → cualquiera, incluso sin login (exige justificar con insecureReason)
+#    USER       → cualquier usuario autenticado con Firebase Auth
+#    NO_ACCESS  → nadie desde el cliente (solo herramientas de admin)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Catálogo: lo puede ver cualquiera.
+query ListCursos @auth(level: PUBLIC, insecureReason: "El catálogo de cursos es información pública.") {
+  cursos(orderBy: { titulo: ASC }) {
+    id
+    titulo
+    nivel
+    horas
+    descripcion
+    cupo
+  }
+}
+
+# L4 · Operación heredada del "panel de admin". AUDITADA Y CORREGIDA.
+#
+# Antes: @auth(level: PUBLIC) → cualquiera, sin login, podía listar id, nombre
+# y email de TODOS los alumnos (fuga de datos personales; la auditoría la
+# detectó: un anónimo obtenía el email real de cada alumno).
+#
+# Ahora: NO_ACCESS → ningún cliente puede ejecutarla, ni siquiera autenticado.
+# Justificación: no existe ningún caso de uso legítimo desde la app. El "panel
+# de admin" debe usar herramientas con privilegios de administrador (consola de
+# Firebase o `firebase dataconnect:execute`), que no pasan por @auth, o una
+# operación propia que verifique rol (custom claims) y devuelva lo mínimo
+# necesario. El mínimo privilegio manda: si nadie la necesita, no se expone.
+query ListAlumnos @auth(level: NO_ACCESS) {
+  alumnos {
+    id
+    nombre
+    email
+  }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TODO L3 resuelto: inscripciones del usuario que llama.
+#
+#   - USER: sin sesión, rechazada.
+#   - `alumno(key: { id_expr: "auth.uid" })`: el filtro sale del token. La
+#     operación NO recibe ningún id como variable; pedir los datos de otro
+#     alumno ni siquiera es posible desde el cliente (evita IDOR).
+#   - `matriculas_on_alumno`: fil hijas de Matricula; con alias `matriculas`
+#     para respetar la forma que consume la app.
+# ─────────────────────────────────────────────────────────────────────────────
+query MisInscripciones @auth(level: USER) {
+  alumno(key: { id_expr: "auth.uid" }) {
+    nombre
+    matriculas: matriculas_on_alumno {
+      fecha
+      curso {
+        id
+        titulo
+        nivel
+        horas
+      }
+    }
+  }
+}

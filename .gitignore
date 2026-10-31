@@ -11,6 +11,9 @@ next-env.d.ts
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+dataconnect-debug.log
+pglite-debug.log
+dataconnect/.dataconnect/
 
 # NUNCA commitear claves de service account
 *service-account*.json
