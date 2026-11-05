@@ -6,7 +6,7 @@ El mismo repo evoluciona clase a clase:
 | Clase | Tema | Estado de este repo |
 |---|---|---|
 | 1 | CI/CD con Firebase Hosting, preview channels y headers de seguridad | ✅ resuelta (incluida) |
-| 2 · lunes | **SQL Connect**: PostgreSQL detrás de una API con autorización | ⬅️ **punto de partida** |
+| 2 · lunes | **SQL Connect**: PostgreSQL detrás de una API con autorización | ✅ resuelta (L1–L7 + `REFLEXION.md`) |
 | 3 · viernes | Analytics: plan de medición, consentimiento y SQL en BigQuery | próximamente |
 
 > El enunciado, el cronograma y la rúbrica están en el documento de cada práctica.
@@ -30,8 +30,8 @@ El mismo repo evoluciona clase a clase:
 
 | Pieza | Rol |
 |---|---|
-| `dataconnect/schema/schema.gql` | Tablas: `Curso`, `Alumno` y **`Matricula` (la completás vos)** |
-| `dataconnect/cursos/queries.gql` · `mutations.gql` | Operaciones expuestas a la app — **con TODOs** |
+| `dataconnect/schema/schema.gql` | Tablas: `Curso`, `Alumno` y `Matricula` (clave compuesta + fecha del servidor) |
+| `dataconnect/cursos/queries.gql` · `mutations.gql` | Operaciones expuestas a la app (L1–L5 resueltas y auditadas) |
 | `dataconnect/seed_data.gql` | Datos iniciales (cursos y dos alumnos ficticios) |
 | `lib/firebase.ts` | Inicializa Firebase; en `npm run dev` usa los **emuladores** |
 | `lib/sqlconnect.ts` | Llama a las operaciones por nombre (ya escrito) |
@@ -88,15 +88,15 @@ npm run dev           # 2 · la app en http://localhost:3000
 npm run atacar        # 3 · auditoría de seguridad (repetila después de cada cambio)
 ```
 
-| TODO | Dónde | Qué |
+| Tarea | Dónde | Estado |
 |---|---|---|
-| L1 | `schema.gql` | Tabla `Matricula` (muchos-a-muchos, clave compuesta, fecha del servidor) |
-| L2 | `mutations.gql` | `Inscribirme($cursoId)` · solo usuarios, idempotente, sin elegir alumno |
-| L3 | `queries.gql` | `MisInscripciones` · solo las del usuario que llama |
-| L4 | `queries.gql` | Auditar y corregir `ListAlumnos` |
-| L5 *(opcional)* | `mutations.gql` | `DarmeDeBaja($cursoId)` |
-| L6 | `firebase.json` | CSP: permitir que la app de producción hable con Auth y SQL Connect |
-| L7 | consola | Deploy de SQL Connect a producción (prueba sin costo) |
+| L1 | `schema.gql` | ✅ `Matricula` con clave compuesta y fecha del servidor |
+| L2 | `mutations.gql` | ✅ `Inscribirme($cursoId)` con `auth.uid`, idempotente |
+| L3 | `queries.gql` | ✅ `MisInscripciones` filtra por `auth.uid` (sin IDOR) |
+| L4 | `queries.gql` | ✅ `ListAlumnos` en `NO_ACCESS`; auditoría sin vulnerabilidades |
+| L5 | `mutations.gql` | ✅ `DarmeDeBaja($cursoId)` |
+| L6 | `firebase.json` | ✅ CSP con dominios exactos de Auth y SQL Connect |
+| L7 | consola | ✅ Deploy de SQL Connect + datos en producción |
 
 Después de editar un `.gql`, mirá la terminal de los emuladores: ahí aparecen los errores de
 compilación del esquema. Si no toma los cambios, reiniciá `npm run emulators`. Si cambiaste el

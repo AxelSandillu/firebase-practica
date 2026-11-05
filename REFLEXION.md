@@ -170,6 +170,29 @@ Auditoría de SQL Connect · proyecto fir-practica-72f70 · emuladores locales
 ✅ Todos los controles pasaron
 ```
 
+## Verificación de producción (L7)
+
+Con el deploy de SQL Connect y del frontend ya hechos sobre el proyecto `fir-practica-72f70`:
+
+```
+$ npx firebase dataconnect:services:list
+Service ID: catalogo · Location: us-east4 · Data Source: CloudSQL Instance: catalogo-fdc
+Database: fdcdb · Connector ID: cursos
+
+$ npx firebase dataconnect:sql:diff
+✔ Database schema of catalogo-fdc:fdcdb matches SQL Connect Schema exactly.
+
+$ npx firebase dataconnect:execute dataconnect/cursos/queries.gql ListCursos
+# 7 cursos leídos desde PostgreSQL en producción
+
+$ node scripts/check-headers.mjs https://fir-practica-72f70.web.app/
+✅ Todos los controles pasaron (CSP, HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy y caché)
+```
+
+También se habilitó **Correo electrónico/contraseña** en Authentication (sin eso, `createUserWithEmailAndPassword` devolvía `auth/operation-not-allowed`). La prueba end-to-end en producción —crear cuenta, `UpsertAlumno`, `Inscribirme`, `MisInscripciones` y `DarmeDeBaja`— confirmó que la inscripción no se duplica y que la baja borra solo la fila del usuario que llama.
+
+Durante esa prueba apareció un detalle de la caché del SDK: `executeQuery` usa `PREFER_CACHE` por defecto y, como `lib/sqlconnect.ts` invoca operaciones por nombre (sin el SDK generado que invalida la caché), después de `DarmeDeBaja` la consulta seguía mostrando la inscripción. Se corrigió usando `fetchPolicy: QueryFetchPolicy.SERVER_ONLY` en `listarCursos` y `misInscripciones`, para que la UI refleje siempre el estado real del servidor.
+
 ## 1. ¿Por qué ninguna operación recibe el id del alumno como variable? ¿Qué es IDOR y cómo lo evita `auth.uid`?
 
 **IDOR** (Insecure Direct Object Reference, OWASP API Top 10 #1: Broken Object Level Authorization) es la vulnerabilidad en la que la API decide sobre qué objeto operar a partir de un identificador que manda el cliente, sin verificar que el objeto pertenezca a quien llama. Si `MisInscripciones` recibiera `$alumnoId` y filtrara por él, cualquier usuario autenticado cambiaría ese parámetro y leería las inscripciones (o se daría de baja) de otro.

@@ -1,6 +1,6 @@
 "use client";
 
-import { executeMutation, executeQuery, mutationRef, queryRef } from "firebase/data-connect";
+import { executeMutation, executeQuery, mutationRef, queryRef, QueryFetchPolicy } from "firebase/data-connect";
 import { firebase } from "./firebase";
 import type { Curso } from "./cursos";
 
@@ -34,13 +34,17 @@ interface CursoVars {
 // ── Queries ────────────────────────────────────────────────────────────────
 export async function listarCursos(): Promise<Curso[]> {
   const { dc } = firebase();
-  const { data } = await executeQuery(queryRef<ListCursosData>(dc, "ListCursos"));
+  const { data } = await executeQuery(queryRef<ListCursosData>(dc, "ListCursos"), {
+    fetchPolicy: QueryFetchPolicy.SERVER_ONLY,
+  });
   return data.cursos;
 }
 
 export async function misInscripciones(): Promise<Inscripcion[]> {
   const { dc } = firebase();
-  const { data } = await executeQuery(queryRef<MisInscripcionesData>(dc, "MisInscripciones"));
+  const { data } = await executeQuery(queryRef<MisInscripcionesData>(dc, "MisInscripciones"), {
+    fetchPolicy: QueryFetchPolicy.SERVER_ONLY,
+  });
   return data.alumno?.matriculas ?? [];
 }
 
