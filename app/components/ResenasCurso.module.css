@@ -1,0 +1,64 @@
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.resenas {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resenas h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formulario select,
+.formulario textarea {
+  width: 100%;
+  font: inherit;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.formulario textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista li {
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.pendiente {
+  color: var(--muted);
+  font-style: italic;
+}
