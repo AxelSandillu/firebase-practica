@@ -6,6 +6,8 @@ import type { Curso } from "@/lib/cursos";
 import { inscribirme, listarCursos, mensajeDeError } from "@/lib/sqlconnect";
 import { useUsuario } from "@/lib/useUsuario";
 import FiltroCursos from "./FiltroCursos";
+import ResenasCurso from "./ResenasCurso";
+import styles from "./ResenasCurso.module.css";
 
 type Estado = { tipo: "cargando" } | { tipo: "error"; mensaje: string } | { tipo: "ok"; cursos: Curso[] };
 
@@ -14,6 +16,9 @@ export default function CatalogoSql() {
   const [estado, setEstado] = useState<Estado>({ tipo: "cargando" });
   const [aviso, setAviso] = useState<string | null>(null);
   const [enCurso, setEnCurso] = useState<string | null>(null);
+  // Curso cuyas reseñas están desplegadas. Uno solo a la vez: cada ResenasCurso abre una
+  // suscripción en vivo y cuesta lecturas, así que solo se monta la del curso abierto.
+  const [conResenas, setConResenas] = useState<string | null>(null);
 
   useEffect(() => {
     listarCursos()
@@ -53,15 +58,28 @@ export default function CatalogoSql() {
       )}
       <FiltroCursos
         cursos={estado.cursos}
-        accion={(c) =>
-          usuario ? (
-            <button type="button" className="button button--small" disabled={enCurso === c.id} onClick={() => onInscribirme(c)}>
-              {enCurso === c.id ? "Inscribiendo…" : "Inscribirme"}
-            </button>
-          ) : (
-            <small className="hint">Ingresá para inscribirte</small>
-          )
-        }
+        accion={(c) => (
+          <>
+            <div className={styles.acciones}>
+              {usuario ? (
+                <button type="button" className="button button--small" disabled={enCurso === c.id} onClick={() => onInscribirme(c)}>
+                  {enCurso === c.id ? "Inscribiendo…" : "Inscribirme"}
+                </button>
+              ) : (
+                <small className="hint">Ingresá para inscribirte</small>
+              )}
+              <button
+                type="button"
+                className="button button--small button--ghost"
+                aria-expanded={conResenas === c.id}
+                onClick={() => setConResenas(conResenas === c.id ? null : c.id)}
+              >
+                {conResenas === c.id ? "Ocultar reseñas" : "Ver reseñas"}
+              </button>
+            </div>
+            {conResenas === c.id && <ResenasCurso cursoId={c.id} uid={usuario?.uid ?? null} />}
+          </>
+        )}
       />
     </>
   );
