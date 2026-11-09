@@ -130,7 +130,7 @@ El HTML no puede cachearse sin revalidar porque no tiene versionado en la URL: s
 
 ### Antes de corregir (L4 sin resolver)
 
-Corrida con el esquema y las operaciones L1/L2/L3/L5 ya escritas. La única vulnerabilidad que queda es la operación heredada `ListAlumnos`, que filtra datos personales sin login. (En la primera corrida, con los TODOs sin hacer, además aparecían `Inscribirme` y los controles de aislamiento como *pendientes* por no existir las operaciones.)
+Corrida con el esquema y las operaciones L1/L2/L3/L5 ya escritas. La única vulnerabilidad que queda es la operación heredada `ListAlumnos`, que filtra datos personales sin login. (En la primera corrida, con los TODOs sin hacer, además aparecían `Inscribirme` y los controles de aislamiento como _pendientes_ por no existir las operaciones.)
 
 ```
 $ npm run atacar
@@ -193,6 +193,152 @@ También se habilitó **Correo electrónico/contraseña** en Authentication (sin
 
 Durante esa prueba apareció un detalle de la caché del SDK: `executeQuery` usa `PREFER_CACHE` por defecto y, como `lib/sqlconnect.ts` invoca operaciones por nombre (sin el SDK generado que invalida la caché), después de `DarmeDeBaja` la consulta seguía mostrando la inscripción. Se corrigió usando `fetchPolicy: QueryFetchPolicy.SERVER_ONLY` en `listarCursos` y `misInscripciones`, para que la UI refleje siempre el estado real del servidor.
 
+---
+
+## Práctica 3 · Firestore
+
+### Enlaces de la entrega
+
+- Pull Request mergeado (reglas, índice y CSP): (pegar URL del PR)
+- Capturas y video de las pruebas (Drive): (pegar enlace a la carpeta)
+
+### Evidencia de los tests de reglas
+
+Los tests se ejecutan con `npm run test:reglas`, que levanta un emulador efímero de Firestore, corre `node --test` y lo apaga. Hay 15 tests: los 8 de la consigna y 7 propios. En las salidas se omitieron los avisos `PERMISSION_DENIED` que el SDK imprime cada vez que un test comprueba que una escritura **debe** ser rechazada (son esperados).
+
+**1) Todo en verde** — salida de `npm run test:reglas`:
+
+```
+> firebase emulators:exec --only firestore --project demo-resenas "node --test tests/*.test.mjs"
+
+i  Running script: node --test tests/*.test.mjs
+✔ cualquiera puede leer reseñas, incluso sin login (2134.8314ms)
+✔ Ana puede crear SU reseña (452.8063ms)
+✔ Ana NO puede crear una reseña a nombre de Bruno (96.3387ms)
+✔ sin login no se puede escribir (59.5904ms)
+✔ puntaje fuera de rango o con decimales se rechaza (99.0597ms)
+✔ no se pueden agregar campos extra (p. ej. destacada: true) (49.8817ms)
+✔ la fecha de creación la pone el servidor y no se puede cambiar (198.019ms)
+✔ el cliente no puede escribir el documento del curso (50.7969ms)
+✔ Bruno NO puede editar ni borrar la reseña de Ana (83.5635ms)
+✔ Ana puede editar (conservando la fecha) y borrar SU reseña (80.5994ms)
+✔ sin login no se puede borrar una reseña (53.132ms)
+✔ texto vacío o de más de 500 caracteres se rechaza (92.9265ms)
+✔ autor vacío o de más de 80 caracteres se rechaza (80.1537ms)
+✔ los tipos incorrectos se rechazan (puntaje como texto, texto como número) (75.8748ms)
+✔ lo que no está habilitado queda cerrado (otras colecciones) (113.3131ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4624.5463
++  Script exited successfully (code 0)
+```
+
+**2) Haciéndolo fallar a propósito** — en `firestore.rules` cambié `d.puntaje <= 5` por `d.puntaje <= 6` y volví a correr los tests. Resultado: se puso en rojo **un solo test**, «puntaje fuera de rango o con decimales se rechaza» (14 pasaron y 1 falló). Falló en la línea 54 de `tests/reglas.test.mjs`, el intento de escribir `puntaje: 6`, con el error `Expected request to fail, but it succeeded`: con el límite en 6, la regla dejó pasar un puntaje inválido. Esto confirma que ese test sí depende de la regla del rango y no pasa «por casualidad». (Rutas abreviadas con `...`.)
+
+```
+✔ cualquiera puede leer reseñas, incluso sin login (2617.7447ms)
+✔ Ana puede crear SU reseña (568.5233ms)
+✔ Ana NO puede crear una reseña a nombre de Bruno (120.3662ms)
+✔ sin login no se puede escribir (244.3448ms)
+✖ puntaje fuera de rango o con decimales se rechaza (81.0922ms)
+✔ no se pueden agregar campos extra (p. ej. destacada: true) (132.4994ms)
+✔ la fecha de creación la pone el servidor y no se puede cambiar (274.7919ms)
+✔ el cliente no puede escribir el documento del curso (46.8732ms)
+✔ Bruno NO puede editar ni borrar la reseña de Ana (126.3379ms)
+✔ Ana puede editar (conservando la fecha) y borrar SU reseña (79.3275ms)
+✔ sin login no se puede borrar una reseña (91.5691ms)
+✔ texto vacío o de más de 500 caracteres se rechaza (99.2109ms)
+✔ autor vacío o de más de 80 caracteres se rechaza (55.4094ms)
+✔ los tipos incorrectos se rechazan (puntaje como texto, texto como número) (67.9939ms)
+✔ lo que no está habilitado queda cerrado (otras colecciones) (97.6343ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5701.2452
+
+✖ failing tests:
+
+test at tests\reglas.test.mjs:51:1
+✖ puntaje fuera de rango o con decimales se rechaza (81.0922ms)
+  Error: Expected request to fail, but it succeeded.
+      at .../node_modules/@firebase/rules-unit-testing/dist/esm/index.esm.js:572:31
+      at async TestContext.<anonymous> (.../tests/reglas.test.mjs:54:3)
+!  Script exited unsuccessfully (code 1)
+
+Error: Script "node --test tests/*.test.mjs" exited with code 1
+```
+
+Después revertí el cambio con `git checkout firestore.rules`, dejando de nuevo `d.puntaje <= 5`.
+
+**Tests adicionales propios** (además de los 8 de la consigna): edición y borrado de la reseña ajena, borrado sin login, borrado y edición de la propia, texto vacío / de más de 500 caracteres, autor vacío / de más de 80, tipos incorrectos y colecciones no habilitadas.
+
+### Evidencia de tiempo real
+
+Capturas / video de la actualización en vivo entre dos navegadores (uno en modo incógnito, con otra cuenta): (pegar enlace de Drive o imágenes)
+
+### Índices: emulador vs. producción
+
+El emulador de Firestore **no exige índices**: la consulta «solo 5 estrellas» (`where puntaje == 5` + `orderBy creadaEn desc`) funciona en local aunque falte `firestore.indexes.json`. En producción, en cambio, esa misma consulta falla con `FAILED_PRECONDITION` («The query requires an index») hasta que el índice compuesto está construido, y la construcción tarda unos minutos después del deploy. Por eso el índice se declara en el repo (revisable en el PR y reproducible) y no se prueba solo en local: un «anda en mi máquina» acá no garantiza nada.
+
+### 1. ¿Por qué el id del documento es el UID? ¿Qué tendrías que agregar si usaras ids aleatorios con `addDoc`?
+
+Porque así «una reseña por persona y curso» queda garantizado por la **estructura**: escribir de nuevo en `cursos/{id}/resenas/{uid}` actualiza el mismo documento, no puede haber dos. Además las reglas pueden comparar directamente el id del documento con `request.auth.uid` (`esDuenio(uid)`), sin leer nada más.
+
+Con ids aleatorios (`addDoc`) tendría que agregar:
+
+- **En el documento:** un campo `uid` con el autor y agregarlo a la lista blanca (`hasOnly`/`hasAll`).
+- **En las reglas:** en `create`, `request.resource.data.uid == request.auth.uid`; en `update`/`delete`, `resource.data.uid == request.auth.uid` (y que `uid` no cambie).
+- **En código o reglas, para la unicidad:** algo que impida una segunda reseña de la misma persona. Las reglas no pueden hacer una consulta «¿ya existe alguna reseña mía?» (solo `get`/`exists` sobre una ruta exacta), así que habría que consultar antes desde el cliente (que se puede saltear) o resolverlo con otra estructura. El id = UID lo resuelve gratis y sin lecturas extra.
+
+### 2. La reseña guarda una copia del nombre del autor. ¿Qué ganás y qué perdés? ¿Cómo resolverías el cambio de nombre?
+
+- **Gano:** para mostrar la lista alcanza con **una lectura por reseña**; no hace falta una segunda lectura (un «join», que en Firestore no existe) para buscar el nombre de cada autor. Es más rápido y más barato.
+- **Pierdo:** consistencia. Si alguien cambia su nombre, sus reseñas viejas conservan el anterior (dato desactualizado). Además, el nombre lo manda el cliente y las reglas solo validan su largo, así que alguien podría escribir cualquier `autor` (incluso el nombre de otra persona). Se podría endurecer exigiendo `autor == request.auth.token.name`.
+- **Cambio de nombre:** tres caminos. (a) Aceptarlo como «el nombre al momento de escribir» (es lo que hace esta práctica, y es razonable para reseñas). (b) Al cambiar el nombre, actualizar las reseñas del usuario con una Cloud Function (Práctica 5) que haga una consulta de _collection group_ sobre `resenas` filtrando por autor y las reescriba por lotes. (c) No copiar el nombre y guardar solo el `uid`, con un documento público `perfiles/{uid}` del que se lee el nombre: nombres siempre actuales, pero a cambio de lecturas extra.
+
+### 3. ¿Qué diferencia hay entre `resource.data` y `request.resource.data`? Ejemplo con ambos.
+
+- `resource.data` es el documento **tal como está guardado ahora** en la base (no existe en un `create`).
+- `request.resource.data` es el documento **como quedaría si se acepta la escritura** (en un `update` con `merge`, es el resultado ya mezclado).
+
+Ejemplo, la regla de edición de este proyecto:
+
+```
+allow update: if esDuenio(uid)
+  && resenaValida()                                                // valida request.resource.data (cómo quedaría)
+  && request.resource.data.creadaEn == resource.data.creadaEn;     // lo nuevo == lo que ya había
+```
+
+Compara cómo quedaría (`request.resource.data.creadaEn`) con lo que hay hoy (`resource.data.creadaEn`) para que la fecha no cambie.
+
+### 4. ¿Por qué la regla de creación exige `creadaEn == request.time` y no confía en la fecha del cliente?
+
+Porque el reloj del cliente no es confiable: puede estar mal configurado o ser manipulado a propósito (alguien podría ponerse una reseña con fecha de 2020 o del futuro y alterar el orden de la lista). `request.time` es la hora del **servidor** al evaluar la solicitud, y `serverTimestamp()` es un marcador que el servidor reemplaza justamente por esa hora. Si el cliente manda otra cosa, `creadaEn == request.time` es falso y la escritura se rechaza (el test «la fecha de creación la pone el servidor» lo verifica).
+
+### 5. ¿Qué limitación tiene `getAggregateFromServer` y cómo afecta la experiencia? ¿Qué alternativas hay?
+
+Limitaciones: **no admite listeners** (no es en tiempo real: hay que volver a pedirlo), **no funciona offline** (siempre va al servidor) y cuesta una lectura por cada lote de hasta 1.000 entradas de índice leídas. Para el usuario: la lista se actualiza sola, pero el promedio y la cantidad quedan desactualizados hasta que el componente los vuelve a pedir; por eso el componente los recalcula cuando cambia la cantidad de reseñas y después de publicar o borrar. Las ediciones de _otras_ personas no actualizan el promedio de quien está mirando.
+
+Alternativas: (a) guardar el resumen (`cantidad`, `suma`) en el documento del curso y mantenerlo con una Cloud Function que se dispare al crear/editar/borrar reseñas (es la Práctica 5); así sí se puede escuchar con `onSnapshot`; (b) mantener un contador con `increment()` desde el cliente, lo que obligaría a abrir la escritura sobre el curso y a validar con `getAfter()` en las reglas, mucho más frágil; (c) calcular el promedio en el cliente con las 20 reseñas que ya tiene, pero eso es un promedio **parcial**, no el real.
+
+### 6. Para inscripciones con cupo máximo, ¿Firestore o SQL Connect? Justificá con lo que viste en las dos prácticas.
+
+**SQL Connect (PostgreSQL).** Una inscripción con cupo es un problema de **integridad y concurrencia**, justo lo que encaja con el modelo relacional:
+
+- En la Práctica 2, `Matricula` tiene clave primaria compuesta `(alumnoId, cursoId)` y `Curso` tiene la columna `cupo`: las reglas de integridad viven en la base y no se pueden saltear. Con el cupo, PostgreSQL permite verificar «cuántos hay inscriptos» y escribir la inscripción de forma **atómica** (misma transacción), de modo que dos personas no se queden con el último lugar a la vez.
+- En Firestore, las reglas **no pueden contar** los documentos de una colección. Habría que mantener un contador en el documento del curso, actualizarlo en la misma transacción/lote que la inscripción y validarlo con `getAfter()`. Es posible pero frágil, y ese documento sería un punto caliente (Firestore recomienda no superar ~1 escritura por segundo sostenida sobre un mismo documento), justo cuando se abre la inscripción y todos escriben a la vez.
+
+Firestore brilla en lo que vimos hoy: datos que cambian y se ven **en vivo** en muchos clientes, con esquema flexible (reseñas, chats, tableros). Para inscripciones, lo más importante es que **sea correcto**, no que sea instantáneo en tiempo real.
+
 ## 1. ¿Por qué ninguna operación recibe el id del alumno como variable? ¿Qué es IDOR y cómo lo evita `auth.uid`?
 
 **IDOR** (Insecure Direct Object Reference, OWASP API Top 10 #1: Broken Object Level Authorization) es la vulnerabilidad en la que la API decide sobre qué objeto operar a partir de un identificador que manda el cliente, sin verificar que el objeto pertenezca a quien llama. Si `MisInscripciones` recibiera `$alumnoId` y filtrara por él, cualquier usuario autenticado cambiaría ese parámetro y leería las inscripciones (o se daría de baja) de otro.
@@ -216,7 +362,7 @@ Ventajas extra: el `matricula_upsert` sobre esa clave da la **idempotencia grati
 
 ## 4. La configuración de Firebase (`apiKey`, etc.) es pública. ¿Por qué eso no compromete la base de datos? ¿Qué capa faltaría para frenar a alguien que usa esa config desde un script?
 
-La `apiKey` **no es un secreto ni una credencial de acceso**: es un identificador de proyecto. Sirve para decir *a qué* proyecto hablar, no para *autorizar* nada. Quien la tenga puede llamar a las operaciones del conector, pero cada llamada pasa igual por `@auth`: podrá leer el catálogo (`PUBLIC`) y, si además crea una cuenta, inscribirse **a sí mismo** — nunca leer datos de otros ni escribir en su nombre. La seguridad está en Auth + los niveles de las operaciones, no en esconder la config (esa es la misma razón por la que viaja en el bundle sin ofuscar).
+La `apiKey` **no es un secreto ni una credencial de acceso**: es un identificador de proyecto. Sirve para decir _a qué_ proyecto hablar, no para _autorizar_ nada. Quien la tenga puede llamar a las operaciones del conector, pero cada llamada pasa igual por `@auth`: podrá leer el catálogo (`PUBLIC`) y, si además crea una cuenta, inscribirse **a sí mismo** — nunca leer datos de otros ni escribir en su nombre. La seguridad está en Auth + los niveles de las operaciones, no en esconder la config (esa es la misma razón por la que viaja en el bundle sin ofuscar).
 
 La capa que falta es **App Check**: ata la app a un proveedor de atestación (reCAPTCHA Enterprise, DeviceCheck, Play Integrity) y el backend rechaza el tráfico que no venga del sitio/binario legítimo. Un script que usa la config pública — exactamente lo que hace `scripts/atacar.mjs` — queda bloqueado aunque conozca la apiKey, porque no puede presentar el token de atestación válido. Complementan el defense in depth: App Check como veredicto de acceso, las reglas `@auth` como autorización por operación y los límites de cuota/monitoreo de la consola.
 
@@ -228,6 +374,6 @@ La capa que falta es **App Check**: ata la app a un proveedor de atestación (re
 
 ## 6. ¿Por qué no alcanzó con la CSP de la clase 1 y por qué conviene listar dominios exactos en `connect-src`?
 
-La CSP de la clase 1 no tenía `connect-src`, así que heredaba `default-src 'self'`: alcanzaba para una app puramente estática que solo carga sus propios archivos e imágenes de picsum. La clase 2 le agrega backend: el navegador ahora necesita conectarse a `identitytoolkit.googleapis.com` (crear cuenta / login), `securetoken.googleapis.com` (renovación del ID token) y `firebasedataconnect.googleapis.com` (todas las operaciones SQL Connect). Sin allowlist, el navegador las bloquea: *Refused to connect* y el catálogo no carga. Por eso se agregó `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasedataconnect.googleapis.com`.
+La CSP de la clase 1 no tenía `connect-src`, así que heredaba `default-src 'self'`: alcanzaba para una app puramente estática que solo carga sus propios archivos e imágenes de picsum. La clase 2 le agrega backend: el navegador ahora necesita conectarse a `identitytoolkit.googleapis.com` (crear cuenta / login), `securetoken.googleapis.com` (renovación del ID token) y `firebasedataconnect.googleapis.com` (todas las operaciones SQL Connect). Sin allowlist, el navegador las bloquea: _Refused to connect_ y el catálogo no carga. Por eso se agregó `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasedataconnect.googleapis.com`.
 
-No usamos `https://*.googleapis.com` porque ese comodín habilita **cientos** de hosts de Google (Drive, Storage, BigQuery, Functions de cualquier proyecto…) que la app jamás usa. La CSP es, sobre todo, el plan de contención de un XSS: define a dónde puede exfiltrar datos o con qué APIs comunicarse un script inyectado. Con orígenes exactos el atacante solo tiene lo mínimo que la app necesita; con el comodín, toda la superficie de Google. Además, si una versión futura del SDK empieza a llamar a un dominio nuevo, la consola lo muestra (*Refused to connect*) y se revisa conscientemente, en lugar de pasar desapercibido bajo el comodín.
+No usamos `https://*.googleapis.com` porque ese comodín habilita **cientos** de hosts de Google (Drive, Storage, BigQuery, Functions de cualquier proyecto…) que la app jamás usa. La CSP es, sobre todo, el plan de contención de un XSS: define a dónde puede exfiltrar datos o con qué APIs comunicarse un script inyectado. Con orígenes exactos el atacante solo tiene lo mínimo que la app necesita; con el comodín, toda la superficie de Google. Además, si una versión futura del SDK empieza a llamar a un dominio nuevo, la consola lo muestra (_Refused to connect_) y se revisa conscientemente, en lugar de pasar desapercibido bajo el comodín.
