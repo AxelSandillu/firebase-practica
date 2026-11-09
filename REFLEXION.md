@@ -199,8 +199,7 @@ Durante esa prueba apareció un detalle de la caché del SDK: `executeQuery` usa
 
 ### Enlaces de la entrega
 
-- Pull Request mergeado (reglas, índice y CSP): (pegar URL del PR)
-- Capturas y video de las pruebas (Drive): (pegar enlace a la carpeta)
+- Pull Request mergeado (reglas, índice y CSP): https://github.com/AxelSandillu/firebase-practica/pull/13#issue-6277477516
 
 ### Evidencia de los tests de reglas
 
